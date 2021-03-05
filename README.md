@@ -14,6 +14,7 @@ CloudFormationのドキュメント
 
 
 cloudformationのテンプレートを扱う際の便利なツール
+<br>
 ■visualstudiocode
 拡張機能としてcloudformationテンプレートのスニペットが用意されているので、それらを利用する。
 以下2点のいずれかおすすめ
