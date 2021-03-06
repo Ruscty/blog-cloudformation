@@ -1,0 +1,264 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: this is APIgateway restapi(lambda) sample templates
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+# APIGateway
+  ApigatewayApiName:
+    Type: String
+    Description: input your api name
+    Default: SampleApiName
+
+  ApigatewayResourceName:
+    Type: String
+    Description: input your api resource name
+    Default: SampleApiResourceName
+
+  ApigatewayStageName:
+    Type: String
+    Description: input your api stage name
+    Default: SampleApiStageName
+  
+  ApigatewayEndpoint:
+    Type: String
+    Description: select api endpoint
+    AllowedValues: 
+      - EDGE
+      - REGIONAL
+      - PRIVATE
+    Default: REGIONAL
+# IAM
+  PolicyName:
+    Type: String
+    Description: this is default policy for lambda
+    Default: AWSLambdaBasicExecutionRole-default
+  RoleName:
+    Type: String
+    Description: this is default Role for lambda
+    Default: functionname-role-default
+# Lambda
+  LambdaFunctionName:
+    Type: String
+    Description: input your function name
+    Default: ExampleLambdaFuncitonName
+  LambdaTimeout:
+    Type: String
+    Default: 30
+  LambdaMemorySize:
+    Type: String
+    Default: 128
+  LambdaRunTime:
+    Type: String
+    Description: select your runtime
+    AllowedValues: 
+      - python3.8
+      - nodejs14.x
+      - ruby2.7
+      - Java11
+      - Go1.x
+      - dotnetcore3.1
+    Default: nodejs14.x
+# S3
+  S3BucketName: #任意で用意したS3バケット名を設定
+    Type: String
+    Description: input your s3 bucket name
+  S3ObjectName: #格納先のzipファイルオブジェクト名を指定する
+    Type: String
+    Description: specify a lambda code zipfile object from your bucket [XXXX/XXXX.zip]
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Tags Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+      -
+        Label:
+          default: "APIGateway Configuration"
+        Parameters:
+          - ApigatewayApiName
+          - ApigatewayResourceName
+          - ApigatewayStageName
+          - ApigatewayEndpoint
+      -
+        Label:
+          default: "Policy and Role Configuration"
+        Parameters:
+          - PolicyName
+          - RoleName
+      -
+        Label:
+          default: "lambda Configuration"
+        Parameters:
+          - LambdaFunctionName
+          - LambdaTimeout
+          - LambdaMemorySize
+          - LambdaRunTime
+      -
+        Label:
+          default: "lambda Configuration"
+        Parameters:
+          - S3BucketName
+          - S3ObjectName
+
+
+Resources:
+# ----------------------------------------------APIGateway----------------------------------------------
+# APIGateway本体
+  ApiGatewayRestApiID:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: this is restapi sample
+      EndpointConfiguration:
+        Types: 
+          - !Ref ApigatewayEndpoint
+      FailOnWarnings: true
+      Name: !Ref ApigatewayApiName
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+
+# APIリソース
+  ApiGatewayResourceID:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt ApiGatewayRestApiID.RootResourceId
+      PathPart: !Ref LambdaID
+      RestApiId: !Ref ApiGatewayRestApiID
+
+# APIメソッド
+  ApiGatewayMethodID:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: None
+      HttpMethod: POST
+      Integration:
+        Type: AWS_PROXY #Lambdaプロキシ統合を使用
+        IntegrationHttpMethod: POST
+        # 統合のURIを指定する
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${LambdaID}/invocations"
+      ResourceId: !Ref ApiGatewayResourceID
+      RestApiId: !Ref ApiGatewayRestApiID
+
+# クライアント証明書
+  ApiGatewayClientCertificateID:
+    Type: AWS::ApiGateway::ClientCertificate
+    Properties:
+      Description: this is clientcertificate for apigateway
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+
+# ステージ作成＆デプロイ
+  ApiGatewayDeployID:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      Description: this is apigateway deploy
+      RestApiId: !Ref ApiGatewayRestApiID
+      StageDescription: #デプロイする最初のステージの設定内容を記載する(例：クライアント証明書を設定、cloudwatchログ＆詳細cloudwatchメトリクスの有効化)
+        ClientCertificateId: !Ref ApiGatewayClientCertificateID
+        MetricsEnabled: true
+      StageName: !Ref ApigatewayStageName
+    DependsOn:
+      - ApiGatewayMethodID #メソッドとの依存関係があるため依存関係を明示
+
+# APIGatewayがLambdaを呼び出すための権限の付与
+  LambdaPermissionID:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Ref LambdaID
+      Principal: "apigateway.amazonaws.com"
+    DependsOn:
+      - LambdaID #Lambdaを作成後に設定する
+
+# ----------------------------------------------Lambda関数----------------------------------------------
+# ポリシー
+# マネージメントコンソールから作成した場合と同様のポリシーを作成
+# 主にLambda関数がcloudwatchlogsのロググループにログを格納可能にするための権限
+# !Subを使用してparameterの値に対応
+  LambdaPolicyID:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: this is defaut policy for lambda
+      ManagedPolicyName: !Ref PolicyName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+              Effect: Allow
+              Action: 'logs:CreateLogGroup'
+              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+          -
+              Effect: Allow
+              Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+              Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
+
+# ロール
+  LambdaRoleID:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Description: this is role for lambda 
+      ManagedPolicyArns:
+        - !Ref LambdaPolicyID
+      RoleName: !Ref RoleName
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+# Lambda
+  LambdaID:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: 
+        S3Bucket: !Ref S3BucketName
+        S3Key: S3ObjectName
+      Description: this lambda function is created by cloudformation templates
+      Environment:
+        Variables:
+          ENVIRONMENT_VARIABLE: variable
+      FunctionName: !Ref LambdaFunctionName
+      Handler: handler #関数ファイル名とコード内メソッド名を合わせること…例（ファイル名：index.js、メソッド名：handler→index.handler）
+      # KmsKeyArn: String #関数の環境変数の暗号化に使用する場合にKMSのARNを入力
+      MemorySize: !Ref LambdaMemorySize
+      Role: !GetAtt LambdaRoleID.Arn
+      Runtime: !Ref LambdaRunTime
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+      Timeout: !Ref LambdaTimeout
+
+Outputs:
+  LambdaFunctionNameOutputID:
+    Description: output your lambda function resources
+    Value: !Ref LambdaID
+    Export:
+      Name: !Sub ${LambdaFunctionName}-output2
+# 他のリソースベースポリシーで権限をロールごとで管理する場合のためのLambdaロールを出力
+  LambdaRoleOutputID:
+    Description: output your lambda function role ARN
+    Value: !GetAtt LambdaRoleID.Arn
+    Export:
+      Name: !Sub ${RoleName}-output
+
