@@ -233,7 +233,7 @@ Resources:
     Properties:
       Code: 
         S3Bucket: !Ref S3BucketName
-        S3Key: S3ObjectName
+        S3Key: !Ref S3ObjectName
       Description: this lambda function is created by cloudformation templates
       Environment:
         Variables:
