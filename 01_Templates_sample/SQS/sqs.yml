@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: this is sqs sample templates
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+# SQS
+  SQSType:
+    Type: String
+    AllowedValues: 
+      - FIFO
+      - STANDARD
+    Default: STANDARD
+  QueueName:
+    Type: String
+    Default: SampleQueue
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "SQS Configuration"
+        Parameters:
+          - SQSType
+          - QueueName
+      -
+        Label:
+          default: "Tags Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+
+# 条件
+Conditions:
+  checkfifoID: !Equals [!Ref SQSType, FIFO]
+  
+Resources:
+  QUEUEID:
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: !If
+        - checkfifoID
+        - true
+        - false
+      DelaySeconds: 0
+      FifoQueue: !If
+        - checkfifoID
+        - true
+        - false
+      # KMS関連
+      # KmsDataKeyReusePeriodSeconds: Integer
+      # KmsMasterKeyId: String
+      # メッセージの最大サイズデフォルトは最大の262,144
+      # MaximumMessageSize: 262144
+      # メッセージの保持時間
+      # MessageRetentionPeriod: 345600
+      QueueName: !If
+        - checkfifoID
+        - !Sub ${QueueName}.fifo
+        - !Ref QueueName
+      # ポーリング間隔(0sはショートポーリング)
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+      # メッセージ配信後のメッセージ利用不可までの時間(デフォルト30s)
+      VisibilityTimeout: 30
+Outputs:
+  # SQSのurl(接続用)とARN(ポリシー用)を出力する
+  QueueURLOutputID:
+    Description: output your queue url
+    Value: !Ref QUEUEID
+    Export:
+      Name: !Sub ${QueueName}-output
+  QueueARNOutputID:
+    Description: output your queue ARN
+    Value: !GetAtt QUEUEID.Arn 
+    Export:
+      Name: !Sub ${QueueName}-arn-output
