@@ -1,0 +1,262 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: this is dynamodb sample templates
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+# Dynamodb
+  TableName:
+    Type: String
+    Default: SampleTableName
+  PartitionKey:
+    Type: String
+    Default: UserId
+  SortKey:
+    Type: String
+    Default: RegisterDate
+  Billingmode:
+    Type: String
+    Description: select dynamodb mode
+    AllowedValues: 
+      - PROVISIONED
+      - PAY_PER_REQUEST
+    Default: PROVISIONED
+  ProjectionType:
+    Type: String
+    Description: select projection type
+    AllowedValues: 
+      - KEYS_ONLY
+      - INCLUDE
+      - ALL
+    Default: KEYS_ONLY
+  PointInTimeRecovery: 
+    Type: String
+    Description: select pointintime setting. default is false.
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  ReadCapacityUnits:
+    Type: Number
+    Description: if you use PROVISIONED mode you must setting this parameter
+    Default: 5
+  WriteCapacityUnits:
+    Type: Number
+    Description: if you use PROVISIONED mode you must setting this parameter
+    Default: 5
+
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Tags Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+      -
+        Label:
+          default: "Dynamodb Configuration"
+        Parameters:
+          - TableName
+          - PartitionKey
+          - SortKey
+          - Billingmode
+          - ProjectionType
+          - PointInTimeRecovery
+          - ReadCapacityUnits
+          - WriteCapacityUnits
+
+Conditions:
+  check_tablemode: !Equals [!Ref Billingmode, PROVISIONED]
+  check_protection: !Equals [!Ref ProjectionType, INCLUDE]
+
+Resources:
+  DynamodbTableID:
+    Type: AWS::DynamoDB::Table
+    Properties:
+    # 属性の定義(パーティションキー、ソートキーも含む)
+      AttributeDefinitions:
+        -
+          AttributeName: !Ref PartitionKey
+          AttributeType: "S"
+        -
+          AttributeName: !Ref SortKey
+          AttributeType: "N"
+        -
+          AttributeName: "Title"
+          AttributeType: "S"
+        -
+          AttributeName: "Genre"
+          AttributeType: "N"
+        - !If 
+          - check_protection
+          - 
+            AttributeName: "Other"
+            AttributeType: "S"
+          - 
+            !Ref AWS::NoValue
+          
+    # パーティションキー、ソートキーを設定
+      KeySchema:
+        -
+          AttributeName: !Ref PartitionKey
+          KeyType: "HASH"
+        -
+          AttributeName: !Ref SortKey
+          KeyType: "RANGE"
+    # Dynamodbのモード
+      BillingMode: !Ref Billingmode
+    # グローバルセカンダリインデックスの設定(INCLUDE,ALL and KEYS_ONLY pattern)
+      GlobalSecondaryIndexes: !If 
+        - check_protection
+        # ----------------------------INCLUDE,ALL----------------------------
+        -
+          -   IndexName: !Sub ${TableName}-GSI1
+              KeySchema: 
+                -
+                  AttributeName: "Title"
+                  KeyType: "HASH"
+                -
+                  AttributeName: "Genre"
+                  KeyType: "RANGE"
+            # インデックスに射影する属性の設定
+              Projection: 
+                # 射影がINCLUDEのときのみ値が設定される
+                NonKeyAttributes: !If
+                  - check_protection
+                  - - "Other"
+                  - - !Ref AWS::NoValue
+                    
+                ProjectionType: !Ref ProjectionType
+              # インデックスの読み込み書き込みスループットの設定
+              ProvisionedThroughput: !If
+                - check_tablemode
+                - ReadCapacityUnits: !Ref ReadCapacityUnits
+                  WriteCapacityUnits: !Ref WriteCapacityUnits
+                - !Ref AWS::NoValue
+
+          # OtherはKEY_ONLYだと定義されないためため設定できない
+          -   IndexName: !Sub ${TableName}-GSI2
+              KeySchema: 
+                -
+                  AttributeName: "Title"
+                  KeyType: "HASH"
+                -
+                  AttributeName: "Other"
+                  KeyType: "RANGE"
+            # インデックスに射影する属性の設定
+              Projection: 
+                # 射影がINCLUDEのときのみ値が設定される
+                NonKeyAttributes: !If
+                  - check_protection
+                  - - "Genre"
+                  - - !Ref AWS::NoValue
+                    
+                ProjectionType: !Ref ProjectionType
+              # インデックスの読み込み書き込みスループットの設定
+              ProvisionedThroughput: !If
+                - check_tablemode
+                - ReadCapacityUnits: !Ref ReadCapacityUnits
+                  WriteCapacityUnits: !Ref WriteCapacityUnits
+                - !Ref AWS::NoValue
+        # ----------------------------KEYS_ONLY----------------------------
+        -
+          -   IndexName: !Sub ${TableName}-GSI1
+              KeySchema: 
+                -
+                  AttributeName: "Title"
+                  KeyType: "HASH"
+                -
+                  AttributeName: "Genre"
+                  KeyType: "RANGE"
+            # インデックスに射影する属性の設定
+              Projection: 
+                # 射影がINCLUDEのときのみ値が設定される
+                NonKeyAttributes: !If
+                  - check_protection
+                  - - "Other"
+                  - - !Ref AWS::NoValue
+                    
+                ProjectionType: !Ref ProjectionType
+              # インデックスの読み込み書き込みスループットの設定
+              ProvisionedThroughput: !If
+                - check_tablemode
+                - ReadCapacityUnits: !Ref ReadCapacityUnits
+                  WriteCapacityUnits: !Ref WriteCapacityUnits
+                - !Ref AWS::NoValue
+
+          # OtherはKEYS_ONLYだと定義されないため設定できない(実行不可の確認用でコメントアウト)
+          # -   IndexName: !Sub ${TableName}-GSI2
+          #     KeySchema: 
+          #       -
+          #         AttributeName: "Title"
+          #         KeyType: "HASH"
+          #       -
+          #         AttributeName: "Other"
+          #         KeyType: "RANGE"
+          #   # インデックスに射影する属性の設定
+          #     Projection: 
+          #       # 射影がINCLUDEのときのみ値が設定される
+          #       NonKeyAttributes: !If
+          #         - check_protection
+          #         - - "Genre"
+          #         - - !Ref AWS::NoValue
+                    
+          #       ProjectionType: !Ref ProjectionType
+          #     # インデックスの読み込み書き込みスループットの設定
+          #     ProvisionedThroughput: !If
+          #       - check_tablemode
+          #       - ReadCapacityUnits: !Ref ReadCapacityUnits
+          #         WriteCapacityUnits: !Ref WriteCapacityUnits
+          #       - !Ref AWS::NoValue
+
+      # ポイントインタイムリカバリ
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !Ref PointInTimeRecovery
+      # テーブルの読み込み書き込みスループットの設定
+      ProvisionedThroughput: !If 
+        - check_tablemode
+        - ReadCapacityUnits: !Ref ReadCapacityUnits
+          WriteCapacityUnits: !Ref WriteCapacityUnits
+        - !Ref AWS::NoValue
+
+      # 暗号化の設定
+      # SSESpecification:
+      #   KMSMasterKeyId: String
+      #   SSEEnabled: Boolean
+      #   SSEType: String
+
+      # テーブルのストリーム設定
+      # StreamSpecification:
+      #   StreamSpecification
+
+      TableName: !Ref TableName
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+
+      # TTLの設定
+      # TimeToLiveSpecification: 
+      #   AttributeName: !Ref SortKey
+      #   Enabled: true
+Outputs:
+  DynamoDBTableNameOutputID:
+    Description: this is dynamodb table name
+    Value: !Ref DynamodbTableID
+    Export: 
+      Name: !Sub ${TableName}-output
+
+  DynamoDBTableARNOutputID:
+    Description: this is dynamodb table ARN
+    Value: !GetAtt DynamodbTableID.Arn 
+    Export: 
+      Name: !Sub ${TableName}-arn-output
+  

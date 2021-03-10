@@ -250,12 +250,13 @@ Resources:
       Timeout: !Ref LambdaTimeout
 
 Outputs:
+# Lambdaの関数名を出力
   LambdaFunctionNameOutputID:
     Description: output your lambda function resources
     Value: !Ref LambdaID
     Export:
       Name: !Sub ${LambdaFunctionName}-output2
-# 他のリソースベースポリシーで権限をロールごとで管理する場合のためのLambdaロールを出力
+# 他のリソースベースポリシーで権限を管理するためにLambdaロールを出力
   LambdaRoleOutputID:
     Description: output your lambda function role ARN
     Value: !GetAtt LambdaRoleID.Arn
