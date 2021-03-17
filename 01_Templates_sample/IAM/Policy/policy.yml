@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is iam policy sample
+Parameters:
+  policyname:
+    Description: input your policy name
+    Type: String
+    Default: policy-name
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "IAM policy Configuration"
+        Parameters:
+          - policyname
+
+Resources:
+  IAMpolicyID:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument: #ポリシー内容を記載
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: '*'
+            Resource: '*'
+      PolicyName: !Ref policyname
+      Roles:
+        - !ImportValue string #Outputsのロール名を参照する

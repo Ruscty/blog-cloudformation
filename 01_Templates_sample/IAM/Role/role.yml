@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is IAM Role templates
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+# ロール名
+  IAMrolename:
+    Description: input your role name
+    Type: String
+    Default: role-servicename
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Tags Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+      -
+        Label:
+          default: "IAM policy Configuration"
+        Parameters:
+          - IAMrolename
+
+Resources:
+  IAMroleID:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: #信頼されたエンティティの設定
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com #ロールを担うリソース(例：EC2)基本的にリソースの名前を記載することが多い
+            Action:
+              - 'sts:AssumeRole'
+      # ManagedPolicyArns: #ここで作成済みのポリシーを参照し、関連付けする
+        # - String
+      # Policies: #インラインポリシードキュメント
+      #   - Policy
+      RoleName: !Ref IAMrolename
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+
+Outputs:
+  IAMroleOutputID:
+    Description: this is IAM role output
+    Value: !Ref IAMroleID
+    Export: 
+      Name: !Sub ${IAMrolename}-rolename-output
