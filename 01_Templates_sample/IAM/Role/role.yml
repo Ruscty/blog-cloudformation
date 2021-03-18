@@ -45,7 +45,7 @@ Resources:
               - ec2.amazonaws.com #ロールを担うリソース(例：EC2)基本的にリソースの名前を記載することが多い
             Action:
               - 'sts:AssumeRole'
-      # ManagedPolicyArns: #ここで作成済みのポリシーを参照し、関連付けする
+      # ManagedPolicyArns: #ここで作成済みのポリシーを参照し、関連付けする(マネージドポリシーを使用する場合に対象のARN記載する。なおユーザーが作成した独自のポリシーも設定可能)
         # - String
       # Policies: #インラインポリシードキュメント
       #   - Policy
