@@ -20,6 +20,9 @@ Parameters:
   QueueName:
     Type: String
     Default: SampleQueue
+  DLQQueueName:
+    Type: String
+    Default: SampleDLQQueue
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -30,6 +33,7 @@ Metadata:
         Parameters:
           - SQSType
           - QueueName
+          - DLQQueueName
       -
         Label:
           default: "Tags Configuration"
@@ -67,11 +71,48 @@ Resources:
         - !Ref QueueName
       # ポーリング間隔(0sはショートポーリング)
       ReceiveMessageWaitTimeSeconds: 20
+      #デッドレターキュー配信用の設定項目
+      RedrivePolicy: 
+        deadLetterTargetArn: 
+          !GetAtt DLQQUEUEID.Arn
+        maxReceiveCount: 5
       Tags:
         - Key: !Ref TagKey
           Value: !Ref TagValue
       # メッセージ配信後のメッセージ利用不可までの時間(デフォルト30s)
       VisibilityTimeout: 30
+#デッドレターキュー配信用のキュー
+  DLQQUEUEID:
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: !If
+        - checkfifoID
+        - true
+        - false
+      DelaySeconds: 0
+      FifoQueue: !If
+        - checkfifoID
+        - true
+        - false
+      # KMS関連
+      # KmsDataKeyReusePeriodSeconds: Integer
+      # KmsMasterKeyId: String
+      # メッセージの最大サイズデフォルトは最大の262,144
+      # MaximumMessageSize: 262144
+      # メッセージの保持時間
+      # MessageRetentionPeriod: 345600
+      QueueName: !If
+        - checkfifoID
+        - !Sub ${DLQQueueName}.fifo
+        - !Ref DLQQueueName
+      # ポーリング間隔(0sはショートポーリング)
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+      # メッセージ配信後のメッセージ利用不可までの時間(デフォルト30s)
+      VisibilityTimeout: 30
+
 Outputs:
   # SQSのurl(接続用)とARN(ポリシー用)を出力する
   QueueURLOutputID:
