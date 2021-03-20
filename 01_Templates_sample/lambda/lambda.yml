@@ -30,7 +30,9 @@ Parameters:
     Type: String
     Default: 30
   LambdaMemorySize:
-    Type: String
+    Type: Number
+    MinValue: 128
+    MaxValue: 3008
     Default: 128
   LambdaRunTime:
     Type: String
@@ -39,8 +41,8 @@ Parameters:
       - python3.8
       - nodejs14.x
       - ruby2.7
-      - Java11
-      - Go1.x
+      - java11
+      - go1.x
       - dotnetcore3.1
     Default: nodejs14.x
 
