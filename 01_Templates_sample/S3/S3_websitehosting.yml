@@ -1,0 +1,98 @@
+# 下記S3ウェブサイトホスティングのチュートリアルをCloudFormationで実施
+# https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/dev/HostingWebsiteOnS3Setup.html
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is s3 website hosting templates
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+#バケット名
+  Bucketname:
+    Description: input your bucket name. if you need to use route53 domain, you must input like domain name.
+    Type: String
+    Default: sample-bucket-12345
+  
+  Bucketversion:
+    Description: select Enabled when if you need versioning
+    Type: String
+    AllowedValues: 
+      - Enabled
+      - Suspended
+    Default: Suspended
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Tags Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+      -
+        Label:
+          default: "S3 Bucket Configuration"
+        Parameters:
+          - Bucketname
+
+Resources:
+  BucketID:
+    Type: AWS::S3::Bucket
+    # DeletionPolicy: Retain #スタック削除時、S3バケット内が空でないとエラーが発生するためスタックの削除時はS3バケットを削除しないようにする
+    Properties:
+      BucketName: !Ref Bucketname
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+      VersioningConfiguration:
+        Status: !Ref Bucketversion
+      WebsiteConfiguration:
+        # ErrorDocument: error.html
+        IndexDocument: index.html
+
+  BucketPolicyID:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BucketID
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+            -
+                Sid: PublicReadGetObject
+                Effect: Allow
+                Principal: '*'
+                Action:
+                    - 's3:GetObject'
+                Resource:
+                    - !Sub arn:aws:s3:::${BucketID}/*
+
+Outputs:
+  S3BucketnameOutput: #バケット名の出力
+    Description: this is S3 Bucketname
+    Value: !Ref BucketID
+    Export: 
+      Name: !Sub ${Bucketname}-bucketname-output
+
+  S3BucketurlOutput: #バケットurlの出力
+    Description: this is S3 Bucket url
+    Value: !GetAtt BucketID.WebsiteURL
+    Export: 
+      Name: !Sub ${Bucketname}-bucketurl-output
+
+  S3BucketarnOutput: #バケットのARNを出力
+    Description: this is S3 Bucket ARN
+    Value: !GetAtt BucketID.Arn
+    Export: 
+      Name: !Sub ${Bucketname}-bucketarn-output
