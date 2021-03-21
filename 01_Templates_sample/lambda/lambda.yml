@@ -125,7 +125,7 @@ Resources:
         S3Bucket: XXXX #任意で用意したS3バケット名を設定
         S3Key: XXXX/XXXX.zip #格納先のzipファイルオブジェクト名を指定する
       Description: this lambda function is created by cloudformation templates
-      Environment:
+      Environment: #環境変数の設定
         Variables:
           ENVIRONMENT_VARIABLE: variable
       FunctionName: !Ref LambdaFunctionName

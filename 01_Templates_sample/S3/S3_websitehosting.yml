@@ -41,6 +41,7 @@ Metadata:
           default: "S3 Bucket Configuration"
         Parameters:
           - Bucketname
+          - Bucketversion
 
 Resources:
   BucketID:
