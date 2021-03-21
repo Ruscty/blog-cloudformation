@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is for s3 websitehosting with WEBGL and Authentication
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+# IAM
+  IAMRoleName:
+    Description: this is IAM Role Name
+    Type: String
+    Default: RoleLambdaEdge
+
+#バケット名
+  Bucketname:
+    Description: input your bucket name. you must input like domain name. example[example.com]
+    Type: String
+    Default: mywebgl.test
+  Bucketversion:
+    Description: select Enabled when if you need versioning
+    Type: String
+    AllowedValues: 
+      - Enabled
+      - Suspended
+    Default: Suspended
+#Lambda関数名
+  AuthLambdaName:
+    Description: this is authentication lambda name
+    Type: String
+    Default: AuthenticationLambda
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Tags Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+      -
+        Label:
+          default: "S3 Bucket Configuration"
+        Parameters:
+          - Bucketname
+          - Bucketversion
+      -
+        Label:
+          default: "Lambda Bucket Configuration"
+        Parameters:
+          - AuthLambdaName
+      -
+        Label:
+          default: "IAM Role Configuration"
+        Parameters:
+          - IAMRoleName
+
+Resources:
+#Lambda@EdgeのIAMロール
+  LambdaEdgeRoleID:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com 
+              - edgelambda.amazonaws.com #Lambda@Edge用の信頼されたエンティティ
+            Action:
+              - 'sts:AssumeRole'
+
+      Description: this is lambda Edge Role
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      RoleName: !Ref IAMRoleName
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+
+  LambdaID:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: 
+        S3Bucket: XXXX #任意で用意したS3バケット名を設定
+        S3Key: XXXX/XXXX.zip #格納先のzipファイルオブジェクト名を指定する
+      Description: this lambda function is created by cloudformation templates
+      Environment: #環境変数の設定
+        Variables:
+          ENVIRONMENT_VARIABLE: variable
+      FunctionName: !Ref AuthLambdaName
+      Handler: handler #関数ファイル名とコード内メソッド名を合わせること…例（ファイル名：index.js、メソッド名：handler→index.handler）
+      # KmsKeyArn: String #関数の環境変数の暗号化に使用する場合にKMSのARNを入力
+      Role: !GetAtt LambdaEdgeRoleID.Arn
+      Runtime: nodejs14.x
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+
+#Lambda Version
+  LambdaVersionID: #Lambda@EdgeはVersion指定しないと設定できないため作成
+    Type: AWS::Lambda::Version
+    Properties:
+      Description: this is Lambda version 1 
+      FunctionName: !Ref LambdaID
+
+#S3バケット
+  BucketID:
+    Type: AWS::S3::Bucket
+    # DeletionPolicy: Retain #スタック削除時、S3バケット内が空でないとエラーが発生するためスタックの削除時はS3バケットを削除しないようにする
+    Properties:
+      BucketName: !Ref Bucketname
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+      VersioningConfiguration:
+        Status: !Ref Bucketversion
+      WebsiteConfiguration:
+        # ErrorDocument: error.html
+        IndexDocument: index.html
+
+  # BucketPolicyID: #Distributionによって自動生成される
+  #   Type: AWS::S3::BucketPolicy
+  #   Properties:
+  #     Bucket: !Ref BucketID
+  #     PolicyDocument: 
+  #       Version: '2012-10-17'
+  #       Statement:
+  #           -
+  #               Sid: PublicReadGetObject
+  #               Effect: Allow
+  #               Principal: '*'
+  #               Action:
+  #                   - 's3:GetObject'
+  #               Resource:
+  #                   - !Sub arn:aws:s3:::${BucketID}/*
+
+  CloudFrontDistributionID:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        # Aliases: #ドメインのエイリアスの設定
+        #   - String
+        Comment: this distribution is created for s3 website hosting authentication #コメント
+        CustomErrorResponses: 
+          - ErrorCachingMinTTL: 10
+            ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCachingMinTTL: 10
+            ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior: 
+          AllowedMethods: 
+            - GET
+            - HEAD
+          CachedMethods: 
+            - GET
+            - HEAD
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad #Managed-CachingDisabled
+          LambdaFunctionAssociations: 
+            - EventType: viewer-request
+              IncludeBody: false
+              LambdaFunctionARN: !GetAtt LambdaID.Arn
+          TargetOriginId: !Ref BucketID
+          ViewerProtocolPolicy: allow-all
+
+        CacheBehaviors: 
+          - AllowedMethods: 
+              - GET
+              - HEAD
+            CachedMethods: 
+              - GET
+              - HEAD
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad #Managed-CachingDisabled
+            # Compress: Boolean #特定ファイルの圧縮を行うかどうか
+            # FieldLevelEncryptionId: String #フィールドレベル暗号化設定の ID の値
+            LambdaFunctionAssociations: 
+              -   EventType: viewer-request
+                  IncludeBody: false
+                  LambdaFunctionARN: !GetAtt LambdaID.Arn
+            # OriginRequestPolicyId: String #キャッシュ動作にアタッチされているオリジンリクエストポリシーの一意の識別子
+            PathPattern: /index.html
+            # RealtimeLogConfigArn: String #キャッシュ動作にアタッチされたリアルタイムログ設定
+            # SmoothStreaming: Boolean #キャッシュ動作に関連付けられたオリジンを使用して Microsoft スムーズストリーミング形式のメディアファイルを配信するかどうか
+            TargetOriginId: !Ref BucketID
+            # TrustedSigners: #プライベートコンテンツの署名付き URL の作成を許可する AWS アカウントを指定
+            #   - String
+            ViewerProtocolPolicy: allow-all
+        DefaultRootObject: index.html
+        Enabled: true #Distributionの有効化
+        HttpVersion: http1.1 # or http2
+        IPV6Enabled: true
+        # Logging: #アクセスログを記録するかどうかを制御する
+        #   Logging
+        # OriginGroups: #オリジングループの設定
+        #   OriginGroups
+        Origins: 
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            # CustomOriginConfig: #S3のバケットを指定するため設定しない
+            #   CustomOriginConfig
+            DomainName: String
+            Id: String
+            # OriginCustomHeaders: #オリジンに送信するリクエストに追加する HTTP ヘッダー名と値のリスト
+            #   - OriginCustomHeader
+            # OriginPath: String #コンテンツをリクエストするときに、CloudFront がオリジンドメイン名に追加するオプションのパス
+            S3OriginConfig: 
+              OriginAccessIdentity: ""
+        PriceClass: PriceClass_100 # or PriceClass_200 or PriceClass_All
+        # Restrictions: #コンテンツの配信を制限する方法
+        #   Restrictions
+        ViewerCertificate: 
+          # AcmCertificateArn: String
+          CloudFrontDefaultCertificate: true #XX.cloudfront.netを利用する場合はその他の値は空に設定、エイリアスを設定する場合は変更する。
+          # IamCertificateId: String
+          # MinimumProtocolVersion: String
+          # SslSupportMethod: String
+        # WebACLId: String #WEBACLの設定
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+
+
