@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is sns sample templates
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+#トピック
+  Topicname:
+    Type: String
+    Default: SampleTopicName
+  
+  TopicType:
+    Description: select your topic type
+    Type: String
+    AllowedValues:
+      - Normal
+      - FIFO
+    Default: Normal
+
+  Protocol: #emailはFIFO形式では利用できないようなので注意
+    Description: select your protocol. if you select topic type FIFO you cannot use email.
+    Type: String
+    AllowedValues:
+      - http
+      - https
+      - email
+      - email-json
+      - sms
+      - application
+      - lambda
+      # - firehose
+    Default: email
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Alarm Configuration"
+        Parameters:
+          - Topicname
+          - Protocol
+      -
+        Label:
+          default: "Tags Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+
+Conditions:
+  check_fifotopic: !Equals [!Ref TopicType, FIFO]
+
+Resources:
+  SNSTopicID:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !If
+        - check_fifotopic
+        - !Sub ${Topicname}.fifo
+        - !Ref Topicname
+      
+      ContentBasedDeduplication: !If #FifoTopic=trueの時のみ重複配信無効IDを有効可能
+        - check_fifotopic
+        - true
+        - !Ref AWS::NoValue
+      DisplayName: TopicDisplayName
+      FifoTopic: !If #FIFO形式を利用する場合true
+        - check_fifotopic
+        - true
+        - false
+      # KmsMasterKeyId: String #KMS設定
+      # Subscription: # 同じテンプレート内でAWS::SNS::Subscriptionを作成する場合は不要
+      #   - Endpoint: 
+      #     Protocol: 
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+      
+  SNSSubscriptionID:
+    Type: AWS::SNS::Subscription
+    Properties:
+      DeliveryPolicy: #配信再試行ポリシーの設定(デフォルト設定)
+        healthyRetryPolicy:
+          numRetries: 20
+          minDelayTarget: 20
+          maxDelayTarget: 20
+          numMinDelayRetries: 0
+          numMaxDelayRetries: 0
+          numNoDelayRetries: 0
+          backoffFunction: linear
+      Endpoint: zicksick0706@outlook.jp
+      # FilterPolicy: Json
+      Protocol: !Ref Protocol
+      # RawMessageDelivery: Boolean #Rawメッセージに関する設定
+      # RedrivePolicy: Json #実行失敗でデッドレターキューに配信する場合
+      Region: !Sub ${AWS::Region}
+      # SubscriptionRoleArn: String #Amazon Kinesis Data Firehose delivery stream subscriptionsの時に使用する
+      TopicArn: !Ref SNSTopicID
+
+Outputs:
+  SNSTopicOutputID: #topicのARNを出力
+    Description: this is SNSTopic Arn output
+    Value: !Ref SNSTopicID
+    Export: 
+      Name: !Sub ${Topicname}-output
