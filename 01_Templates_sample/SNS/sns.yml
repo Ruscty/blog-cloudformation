@@ -95,7 +95,7 @@ Resources:
           numMaxDelayRetries: 0
           numNoDelayRetries: 0
           backoffFunction: linear
-      Endpoint: zicksick0706@outlook.jp
+      Endpoint: xxxx@xxxx.jp
       # FilterPolicy: Json
       Protocol: !Ref Protocol
       # RawMessageDelivery: Boolean #Rawメッセージに関する設定
