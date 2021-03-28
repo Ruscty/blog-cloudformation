@@ -1,0 +1,16 @@
+SAMで定義できるType
+①AWS::Serverless::Function
+→Lambdaのデプロイ
+
+
+②AWS::Serverless::Api
+→APIGatewayのデプロイ
+
+③AWS::Serverless::SimpleTable
+→DynamoDBのデプロイ
+
+④AWS::Serverless::LayerVersion
+→Lambda Layerのデプロイ(Lambdaのバージョン)
+
+⑤AWS::Serverless::Application
+→Serverless Application Repositoryに存在するアプリケーションのデプロイ
