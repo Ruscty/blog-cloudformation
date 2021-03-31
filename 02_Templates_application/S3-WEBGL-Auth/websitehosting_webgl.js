@@ -6,8 +6,8 @@ exports.handler = (event, context, callback) => {
     const headers = request.headers;
 
     // Configure authentication
-    const authUser = 'user';
-    const authPass = 'password';
+    const authUser = 'testuser';
+    const authPass = 'pass135';
 
     // Construct the Basic Auth string
     const authString = 'Basic ' + new Buffer(authUser + ':' + authPass).toString('base64');
