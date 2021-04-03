@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is Event Schedule Sample Templates
+Parameters:
+# IAM
+  PolicyName:
+    Type: String
+    Description: this is default policy for lambda
+    Default: AWSLambdaBasicExecutionRole-default
+  RoleName:
+    Type: String
+    Description: this is default Role for lambda
+    Default: functionname-role-default
+
+# Lambda
+  LambdaFunctionName:
+    Type: String
+    Description: input your function name
+    Default: ExampleLambdaFuncitonName
+  LambdaTimeout:
+    Type: String
+    Default: 30
+  LambdaMemorySize:
+    Type: Number
+    MinValue: 128
+    MaxValue: 3008
+    Default: 128
+  LambdaRunTime:
+    Type: String
+    Description: select your runtime
+    AllowedValues: 
+      - python3.8
+      - nodejs14.x
+      - ruby2.7
+      - java11
+      - go1.x
+      - dotnetcore3.1
+    Default: nodejs14.x
+
+  lambdaBucketname:
+    Type: String
+    Description: input your bucket name where storing the lambda zip file
+
+  lambdaObjectname:
+    Type: String
+    Description: input your object name where storing the lambda zip file
+
+  lambdahandler:
+    Type: String
+    Description: input your run file and method name. example index.js and handler [index.handler]
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "IAM Configuration"
+        Parameters:
+          - PolicyName
+          - RoleName
+      -
+        Label:
+          default: "Lambda Configuration"
+        Parameters:
+          - lambdaBucketname
+          - lambdaObjectname
+          - LambdaFunctionName
+          - LambdaTimeout
+          - LambdaMemorySize
+          - LambdaRunTime
+
+
+Resources:
+# ポリシー
+# マネージメントコンソールから作成した場合と同様のポリシーを作成
+# 主にLambda関数がcloudwatchlogsのロググループにログを格納可能にするための権限
+# !Subを使用してparameterの値に対応
+  LambdaPolicyID:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: this is defaut policy for lambda
+      ManagedPolicyName: !Ref PolicyName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+              Effect: Allow
+              Action: 'logs:CreateLogGroup'
+              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+          -
+              Effect: Allow
+              Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+              Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*
+
+# ロール
+  LambdaRoleID:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Description: this is role for lambda 
+      ManagedPolicyArns:
+        - !Ref LambdaPolicyID
+      RoleName: !Ref RoleName
+
+  LambdaID:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: 
+        S3Bucket: !Ref lambdaBucketname #任意で用意したS3バケット名を設定
+        S3Key: !Ref lambdaObjectname #格納先のzipファイルオブジェクト名を指定する
+      Description: this lambda function is created by cloudformation templates
+      FunctionName: !Ref LambdaFunctionName
+      Handler: !Ref lambdahandler #関数ファイル名とコード内メソッド名を合わせること…例（ファイル名：index.js、メソッド名：handler→index.handler）
+      # KmsKeyArn: String #関数の環境変数の暗号化に使用する場合にKMSのARNを入力
+      MemorySize: !Ref LambdaMemorySize
+      Role: !GetAtt LambdaRoleID.Arn
+      Runtime: !Ref LambdaRunTime
+      Timeout: !Ref LambdaTimeout
+
+
+# イベントトリガーの実行時間を指定するCronの書き方については下記参照
+# https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-schedule-expressions.html
+
+  ScheduledRule1:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule1
+      ScheduleExpression: cron(0 15 * * ? *) #UTC時間の15時(日本時間0:00)にスケジュール
+      State: ENABLED
+      Targets:
+      - Arn: !GetAtt LambdaID.Arn
+        Id: !Sub ${LambdaID}-Event1
+
+  ScheduledRule2:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule2
+      ScheduleExpression: cron(5 15 * * ? *) #UTC時間の15時5分(日本時間0:05)にスケジュール
+      State: ENABLED
+      Targets:
+      - Arn: !GetAtt LambdaID.Arn
+        Id: !Sub ${LambdaID}-Event2
+
+  EventSchedule1ID:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaID
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ScheduledRule1.Arn
+
+  EventSchedule2ID:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaID
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ScheduledRule2.Arn
+
