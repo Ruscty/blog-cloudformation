@@ -24,5 +24,13 @@ Resources:
       # MaxSessionDuration: Integer #セッション時間
       RoleName: !Ref RoleName
 
+# ポリシー割り当て用の出力
+Outputs:
+  SwitchRoleOutputID:
+    Description: this is Switch Role
+    Value: !GetAtt SwitchRoleID.Arn
+    Export: 
+      Name: !Sub ${RoleName}-Output
+
 
 
