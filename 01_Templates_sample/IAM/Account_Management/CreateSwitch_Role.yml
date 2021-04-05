@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  create your switching Role
+
+Parameters:
+  RoleName:
+    Description: input your switch Role Name. 
+    Type: String
+    Default: MySwitchRole
+
+Resources:
+  SwitchRoleID:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+            -
+                Effect: Allow
+                Principal:
+                  AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+                Action: sts:AssumeRole
+                Condition: {}
+      # MaxSessionDuration: Integer #セッション時間
+      RoleName: !Ref RoleName
+
+
+
