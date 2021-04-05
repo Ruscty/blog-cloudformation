@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this policy has none delete permission about resource service and data storing service.
+Parameters:
+  PolicyName:
+    Type: String
+    Default: NoneDeletePermissionPolicy
+
+  OutputRoleName:
+    Description: input the output from create role stack
+    Type: String
+
+Resources:
+  NoneDeletePolicyID:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+            -
+                Action: '*'
+                Effect: Allow
+                Resource: '*'
+            -
+                Action: #フルアクセスポリシーに対して一部のリソース、データ関連の削除権限を削除
+                    - 'ec2:Delete*'
+                    - 'lambda:Delete*'
+                    - 'rds:Delete*'
+                    - 'dynamodb:Delete*'
+                    - 'redshift:Delete*'
+                    - 's3:Delete*'
+                Effect: Deny
+                Resource: '*'
+
+      PolicyName: !Ref PolicyName
+      Roles:
+        - Fn::ImportValue: 
+            !Sub ${OutputRoleName}
