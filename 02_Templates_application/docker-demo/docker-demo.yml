@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is docker-demo sample templates
+Parameters:
+  vpccidr:
+    Type: String
+    Description: this is VPC cidr
+    Default: 10.0.0.0/16
+  
+  subnetcidr:
+    Type: String
+    Description: this is Subnet cidr
+    Default: 10.0.0.0/16
+
+  subnetAZ:
+    Type: String
+    Description: this is where create the instance
+    Default: ap-northeast-1a
+    AllowedValues: 
+      - ap-northeast-1c
+      - ap-northeast-1d
+
+  ec2instancetype:
+    Type: String
+    Description: this is instance type
+    Default: t2.micro
+
+  
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "VPC Configuration"
+        Parameters:
+          - vpccidr
+      -
+        Label:
+          default: "Subnet Configuration"
+        Parameters:
+          - subnetcidr
+          - subnetAZ
+      -
+        Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - ec2instancetype
+
+Resources:
+  myvpcID:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref vpccidr
+      EnableDnsHostnames: false
+      EnableDnsSupport: false
+
+  mysubnetID:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AssignIpv6AddressOnCreation: false
+      AvailabilityZone: !Ref ec2instanceAZ
+      CidrBlock: !Ref logicalsubnetcidrName
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref myvpcID
+
+  mysecuritygroupID:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: this is docker demo sg
+      GroupName: docker-demo
+      # SecurityGroupEgress:
+      #   - Egress
+      SecurityGroupIngress:
+      - IpProtocol: ssh
+        FromPort: 20
+        ToPort: 20
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref myvpcID
+
+# 続き…インスタンスの作成から
+# ENIの設定も必要
+  ec2instanceID:
+    Type: AWS::EC2::Instance
+    Properties:
+      AdditionalInfo: String
+      Affinity: String
+      AvailabilityZone: String
+      BlockDeviceMappings:
+        - BlockDeviceMapping
+      CpuOptions:
+        CpuOptions
+      CreditSpecification:
+        CreditSpecification
+      DisableApiTermination: Boolean
+      EbsOptimized: Boolean
+      ElasticGpuSpecifications:
+        - ElasticGpuSpecification
+      ElasticInferenceAccelerators:
+        - ElasticInferenceAccelerator
+      EnclaveOptions:
+        EnclaveOptions
+      HibernationOptions:
+        HibernationOptions
+      HostId: String
+      HostResourceGroupArn: String
+      IamInstanceProfile: String
+      ImageId: String
+      InstanceInitiatedShutdownBehavior: String
+      InstanceType: !Ref ec2instancetype
+      KernelId: String
+      KeyName: String
+      LaunchTemplate:
+        LaunchTemplateSpecification
+      LicenseSpecifications:
+        - LicenseSpecification
+      Monitoring: Boolean
+      NetworkInterfaces:
+        - NetworkInterface
+      PlacementGroupName: String
+      PrivateIpAddress: String
+      RamdiskId: String
+      SecurityGroupIds:
+        - !GetAtt mysecuritygroupID.GroupId
+      SourceDestCheck: Boolean
+      SubnetId: String
+      UserData: String
+      Volumes:
+        - Volume
+
+Outputs:
