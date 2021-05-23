@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  ec2 templates
+
+Parameters:
+  keyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: selet keypair name
+
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+
+  OutputSecurityGroup:
+    Description: input output securitygroup name. XXXXX is Stack Name
+    Type: String
+    Default: XXXXXOutputSecurityGroup
+
+  OutputSubnet:
+    Description: input output Outputsubnet name. XXXXX is Stack Name
+    Type: String
+    Default: XXXXXOutputSubnetId
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "VPC and Subnet Configuration"
+        Parameters:
+          - keyName
+          - InstanceType
+      -
+        Label:
+          default: "Output Name Configuration"
+        Parameters:
+          - OutputSecurityGroup
+          - OutputSubnet
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      # IamInstanceProfile: "String"
+      ImageId: ami-0ca38c7440de1749a # Linux2
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref keyName
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          SubnetId: {"Fn::ImportValue": !Sub "${OutputSubnet}"}
+          GroupSet:
+            - {"Fn::ImportValue": !Sub "${OutputSecurityGroup}"}
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          sudo yum update -y
+          sudo amazon-linux-extras install nginx1.12 -y
+          sudo yum list installed | grep mariadb
+          sudo yum remove mariadb-libs -y
+          sudo yum -y install https://dev.mysql.com/get/mysql80-community-release-el7-1.noarch.rpm
+          sudo yum-config-manager –enable mysql80-community -y
+          sudo yum install mysql-community-server -y
+          sudo systemctl start mysqld.service
+          sudo systemctl enable mysqld.service
+
+  EIPID:
+    Type: AWS::EC2::EIP
+    Properties:
+      # Domain: "String"
+      InstanceId: !Ref EC2Instance
+      # PublicIpv4Pool: "String"
+
+  EIPASSOCIATIONID:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt EIPID.AllocationId
+      InstanceId: !Ref EC2Instance
+      # NetworkInterfaceId: !ImportValue outputNetworkInterface
+      # PrivateIpAddress: "String"
+
+

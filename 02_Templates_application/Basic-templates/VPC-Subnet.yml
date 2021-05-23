@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  VPC and Subnet
+
+Parameters:
+  VpcCidrBlock:
+    Description: input vpc cidrblock
+    Type: String
+    Default: 10.0.0.0/16
+
+  SubnetCidrBlock:
+    Description: input subnet cidrblock
+    Type: String
+    Default: 10.0.0.0/24
+
+  AvailabilityZoneCidrBlock:
+    Description: input subnet AvailabilityZone
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+  
+# パラメータのソート
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "VPC and Subnet Configuration"
+        Parameters:
+          - VpcCidrBlock
+          - SubnetCidrBlock
+          - AvailabilityZoneCidrBlock
+
+Resources:
+# VPC関連
+  VPCID:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsHostnames: false
+      EnableDnsSupport: true
+      InstanceTenancy: default
+
+# インターネットゲートウェイ
+  INTERNETGATEWAYID:
+    Type: AWS::EC2::InternetGateway
+  # インターネットゲートウェイをアタッチ
+  INTERNETGATEWAYATTATCHMENTID:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref INTERNETGATEWAYID
+      VpcId: !Ref VPCID
+
+# ルートテーブル
+  ROUTETABLEID:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCID
+      
+  # インターネットゲートウェイをルートテーブルに登録
+  INTERNETGATEWAYROUTEID:
+    Type: AWS::EC2::Route
+    Properties:
+      GatewayId: !Ref INTERNETGATEWAYID
+      RouteTableId: !Ref ROUTETABLEID
+      DestinationCidrBlock: 0.0.0.0/0
+
+# サブネット
+  SUBNETID:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZoneCidrBlock
+      CidrBlock: !Ref SubnetCidrBlock
+      VpcId: !Ref VPCID
+
+  # サブネット関連付け
+  SUBNETROUTETABLEASSOCIATIONID:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref ROUTETABLEID
+      SubnetId: !Ref SUBNETID
+
+# セキュリティグループ
+  SECURITYGROUPID:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: primarySecurityGroup
+      GroupName: primarySecurityGroup
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      # - IpProtocol: tcp
+      #   FromPort: 80
+      #   ToPort: 80
+      #   CidrIp: 0.0.0.0/0
+      # SecurityGroupEgress:
+      # - IpProtocol: tcp
+      #   FromPort: 22
+      #   ToPort: 22
+      #   CidrIp: 0.0.0.0/0
+
+# 出力
+Outputs:
+  OUTPUTVPCID:
+    Description: vpc id
+    Value: !Ref VPCID
+    Export: 
+      Name: !Sub ${AWS::StackName}OutputVpcId
+
+  OUTPUTSUBNETID:
+    Description: subnet id
+    Value: !Ref SUBNETID
+    Export: 
+      Name: !Sub ${AWS::StackName}OutputSubnetId
+
+  OUTPUTSECURITYGROUPID:
+    Description: securitygroup id
+    Value: !GetAtt SECURITYGROUPID.GroupId
+    Export: 
+      Name: !Sub ${AWS::StackName}OutputSecurityGroup
