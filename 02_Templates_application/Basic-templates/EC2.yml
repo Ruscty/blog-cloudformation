@@ -67,6 +67,8 @@ Resources:
           sudo yum install mysql-community-server -y
           sudo systemctl start mysqld.service
           sudo systemctl enable mysqld.service
+          sudo systemctl start nginx.service
+          sudo systemctl enable nginx
 
   EIPID:
     Type: AWS::EC2::EIP
