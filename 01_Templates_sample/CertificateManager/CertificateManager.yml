@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is Certificate Manager Sample Templates
+Parameters:
+# ドメイン名
+  Domainname:
+    Description: input your domain name to be https
+    Type: String
+
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+
+Resources:
+  CertificateManagerID:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      # CertificateAuthorityArn: String #プライベートACMで利用
+      # CertificateTransparencyLoggingPreference: String # DISABLED or ENABLED
+      DomainName: !Ref Domainname
+      # DomainValidationOptions: #ドメイン名レジストラが本人確認に使用するドメイン情報
+      #   - DomainValidationOption
+      # SubjectAlternativeNames:
+      #   - String
+      Tags:
+        - Key: !Ref TagKey
+          Value: !Ref TagValue
+      ValidationMethod: DNS # or EMAIL

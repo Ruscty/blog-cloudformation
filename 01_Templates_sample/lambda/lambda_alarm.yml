@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  this is lambda alarm sample templates
+Parameters:
+# タグ
+  TagKey:
+    Type: String
+    Description: this is tagKey
+    Default: Owner
+  TagValue:
+    Type: String
+    Description: this is tagvalue
+    Default: dev
+# アラーム    
+  Alarmname:
+    Description: this is alarm name
+    Type: String
+    Default: SampleAlarm
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Alarm Configuration"
+        Parameters:
+          - Alarmname
+Resources:
+  AlarmID:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true #アラーム状態に変更中のアクション有無
+      AlarmActions:
+        - String
+      AlarmDescription: String
+      AlarmName: String
+      ComparisonOperator: String #required
+      DatapointsToAlarm: Integer
+      Dimensions:
+        - Dimension
+      EvaluateLowSampleCountPercentile: String
+      EvaluationPeriods: Integer #required
+      ExtendedStatistic: String
+      InsufficientDataActions:
+        - String
+      MetricName: String
+      Metrics:
+        - MetricDataQuery
+      Namespace: String
+      OKActions:
+        - String
+      Period: Integer
+      Statistic: String
+      Threshold: Double
+      ThresholdMetricId: String
+      TreatMissingData: String
+      Unit: String
+Outputs:

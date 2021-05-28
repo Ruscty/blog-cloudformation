@@ -1,0 +1,7 @@
+git clone git://github.com/creationix/nvm.git .nvm
+source ~/.nvm/nvm.sh
+nvm install --lts --latest-npm
+npm install -g express-generator
+express -e myapp
+cd myapp
+npm install

@@ -7,6 +7,14 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     Description: selet keypair name
 
+  AMI:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0ca38c7440de1749a
+    AllowedValues:
+      - ami-0ca38c7440de1749a
+      - ami-0bc38169aa677df2e
+
+
   InstanceType:
     Type: String
     Default: t2.micro
@@ -46,7 +54,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       # IamInstanceProfile: "String"
-      ImageId: ami-0ca38c7440de1749a # Linux2
+      ImageId: !Ref AMI # Linux2
       InstanceType: !Ref InstanceType
       KeyName: !Ref keyName
       NetworkInterfaces: 
@@ -59,6 +67,7 @@ Resources:
         Fn::Base64: |
           #!/bin/bash
           sudo yum update -y
+          sudo yum install git gcc-c++ make openssl-devel
           sudo amazon-linux-extras install nginx1.12 -y
           sudo yum list installed | grep mariadb
           sudo yum remove mariadb-libs -y
