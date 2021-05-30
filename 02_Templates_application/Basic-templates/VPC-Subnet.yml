@@ -1,24 +1,38 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
   VPC and Subnet
-
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------# 
 Parameters:
   VpcCidrBlock:
     Description: input vpc cidrblock
     Type: String
     Default: 10.0.0.0/16
 
-  SubnetCidrBlock:
+  PublicSubnetCidrBlock:
     Description: input subnet cidrblock
     Type: String
     Default: 10.0.0.0/24
 
-  AvailabilityZoneCidrBlock:
-    Description: input subnet AvailabilityZone
+  PrivateSubnetCidrBlock:
+    Description: input subnet cidrblock
+    Type: String
+    Default: 10.0.10.0/24
+
+  PublicSubnetAvailabilityZone:
+    Description: input public subnet AvailabilityZone
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+
+  PrivateSubnetAvailabilityZone:
+    Description: input private subnet AvailabilityZone
     Type: AWS::EC2::AvailabilityZone::Name
     Default: ap-northeast-1a
   
-# パラメータのソート
+# ------------------------------------------------------------#
+# MetaData
+# ------------------------------------------------------------# 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -27,11 +41,15 @@ Metadata:
           default: "VPC and Subnet Configuration"
         Parameters:
           - VpcCidrBlock
-          - SubnetCidrBlock
-          - AvailabilityZoneCidrBlock
+          - PublicSubnetCidrBlock
+          - PrivateSubnetCidrBlock
+          - PublicSubnetAvailabilityZone
+          - PrivateSubnetAvailabilityZone
 
 Resources:
-# VPC関連
+# ------------------------------------------------------------#
+#  VPC
+# ------------------------------------------------------------#
   VPCID:
     Type: AWS::EC2::VPC
     Properties:
@@ -40,17 +58,21 @@ Resources:
       EnableDnsSupport: true
       InstanceTenancy: default
 
-# インターネットゲートウェイ
+# ------------------------------------------------------------#
+#  Internet Gateway
+# ------------------------------------------------------------#
   INTERNETGATEWAYID:
     Type: AWS::EC2::InternetGateway
-  # インターネットゲートウェイをアタッチ
+
   INTERNETGATEWAYATTATCHMENTID:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref INTERNETGATEWAYID
       VpcId: !Ref VPCID
 
-# ルートテーブル
+# ------------------------------------------------------------#
+#  Route Table
+# ------------------------------------------------------------#
   ROUTETABLEID:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -64,59 +86,55 @@ Resources:
       RouteTableId: !Ref ROUTETABLEID
       DestinationCidrBlock: 0.0.0.0/0
 
-# サブネット
-  SUBNETID:
+# ------------------------------------------------------------#
+#  Subnet
+# ------------------------------------------------------------#
+# Public
+  PUBLICSUBNETID:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Ref AvailabilityZoneCidrBlock
-      CidrBlock: !Ref SubnetCidrBlock
+      AvailabilityZone: !Ref PublicSubnetAvailabilityZone
+      CidrBlock: !Ref PublicSubnetCidrBlock
       VpcId: !Ref VPCID
 
-  # サブネット関連付け
-  SUBNETROUTETABLEASSOCIATIONID:
+  PUBLICSUBNETROUTETABLEASSOCIATIONID:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref ROUTETABLEID
-      SubnetId: !Ref SUBNETID
+      SubnetId: !Ref PUBLICSUBNETID
 
-# セキュリティグループ
-  SECURITYGROUPID:
-    Type: AWS::EC2::SecurityGroup
+# Private
+  PRIVATESUBNETID:
+    Type: AWS::EC2::Subnet
     Properties:
+      AvailabilityZone: !Ref PrivateSubnetAvailabilityZone
+      CidrBlock: !Ref PrivateSubnetCidrBlock
       VpcId: !Ref VPCID
-      GroupDescription: primarySecurityGroup
-      GroupName: primarySecurityGroup
-      SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
-        CidrIp: 0.0.0.0/0
-      # - IpProtocol: tcp
-      #   FromPort: 80
-      #   ToPort: 80
-      #   CidrIp: 0.0.0.0/0
-      # SecurityGroupEgress:
-      # - IpProtocol: tcp
-      #   FromPort: 22
-      #   ToPort: 22
-      #   CidrIp: 0.0.0.0/0
 
-# 出力
+  PRIVATESUBNETROUTETABLEASSOCIATIONID:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref ROUTETABLEID
+      SubnetId: !Ref PRIVATESUBNETID
+
+# ------------------------------------------------------------#
+#  Outputs
+# ------------------------------------------------------------#
 Outputs:
   OUTPUTVPCID:
     Description: vpc id
     Value: !Ref VPCID
     Export: 
-      Name: !Sub ${AWS::StackName}OutputVpcId
+      Name: !Sub ${AWS::StackName}-OutputVpcId
 
-  OUTPUTSUBNETID:
-    Description: subnet id
-    Value: !Ref SUBNETID
+  OUTPUTPUBLICSUBNETID:
+    Description: public subnet id
+    Value: !Ref PUBLICSUBNETID
     Export: 
-      Name: !Sub ${AWS::StackName}OutputSubnetId
+      Name: !Sub ${AWS::StackName}-OutputPublicSubnetId
 
-  OUTPUTSECURITYGROUPID:
-    Description: securitygroup id
-    Value: !GetAtt SECURITYGROUPID.GroupId
+  OUTPUTPRIVATESUBNETID:
+    Description: private subnet id
+    Value: !Ref PRIVATESUBNETID
     Export: 
-      Name: !Sub ${AWS::StackName}OutputSecurityGroup
+      Name: !Sub ${AWS::StackName}-OutputPrivateSubnetId

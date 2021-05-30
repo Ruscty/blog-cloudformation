@@ -1,19 +1,21 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
   ec2 templates
-
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------# 
 Parameters:
   keyName:
     Type: AWS::EC2::KeyPair::KeyName
-    Description: selet keypair name
+    Description: select keypair name
 
   AMI:
     Type: AWS::EC2::Image::Id
+    Description: input your ami. default is Amazon Linux2
     Default: ami-0ca38c7440de1749a
     AllowedValues:
       - ami-0ca38c7440de1749a
       - ami-0bc38169aa677df2e
-
 
   InstanceType:
     Type: String
@@ -22,17 +24,20 @@ Parameters:
       - t2.micro
       - m1.small
       - m1.large
-
-  OutputSecurityGroup:
-    Description: input output securitygroup name. XXXXX is Stack Name
+  
+  OutputVpc:
+    Description: input output vpc. XXXXX is Stack Name
     Type: String
-    Default: XXXXXOutputSecurityGroup
+    Default: XXXXX-OutputVpcId
 
-  OutputSubnet:
-    Description: input output Outputsubnet name. XXXXX is Stack Name
+  OutputPublicSubnet:
+    Description: input output public subnet name. XXXXX is Stack Name
     Type: String
-    Default: XXXXXOutputSubnetId
+    Default: XXXXX-OutputPublicSubnetId
 
+# ------------------------------------------------------------#
+# MetaData
+# ------------------------------------------------------------# 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -46,11 +51,14 @@ Metadata:
         Label:
           default: "Output Name Configuration"
         Parameters:
-          - OutputSecurityGroup
-          - OutputSubnet
+          - OutputVpc
+          - OutputPublicSubnet
 
 Resources:
-  EC2Instance:
+# ------------------------------------------------------------#
+#  EC2 Instance
+# ------------------------------------------------------------#
+  EC2INSTANCEID:
     Type: AWS::EC2::Instance
     Properties:
       # IamInstanceProfile: "String"
@@ -60,9 +68,9 @@ Resources:
       NetworkInterfaces: 
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"
-          SubnetId: {"Fn::ImportValue": !Sub "${OutputSubnet}"}
+          SubnetId: {"Fn::ImportValue": !Sub "${OutputPublicSubnet}"}
           GroupSet:
-            - {"Fn::ImportValue": !Sub "${OutputSecurityGroup}"}
+            - !Ref EC2SECURITYGROUPID
       UserData:
         Fn::Base64: |
           #!/bin/bash
@@ -79,19 +87,72 @@ Resources:
           sudo systemctl start nginx.service
           sudo systemctl enable nginx
 
+# ------------------------------------------------------------#
+#  ElasticIP
+# ------------------------------------------------------------#
   EIPID:
     Type: AWS::EC2::EIP
     Properties:
-      # Domain: "String"
-      InstanceId: !Ref EC2Instance
-      # PublicIpv4Pool: "String"
+      InstanceId: !Ref EC2INSTANCEID
 
   EIPASSOCIATIONID:
     Type: AWS::EC2::EIPAssociation
     Properties:
       AllocationId: !GetAtt EIPID.AllocationId
-      InstanceId: !Ref EC2Instance
-      # NetworkInterfaceId: !ImportValue outputNetworkInterface
-      # PrivateIpAddress: "String"
+      InstanceId: !Ref EC2INSTANCEID
+
+# ------------------------------------------------------------#
+#  Security Group
+# ------------------------------------------------------------#
+# セキュリティグループ
+  EC2SECURITYGROUPID:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: {"Fn::ImportValue": !Sub "${OutputVpc}"}
+      GroupDescription: Ec2SecurityGroup
+      GroupName: !Sub ${AWS::StackName}-Ec2SecurityGroup
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      # - IpProtocol: tcp
+      #   FromPort: 80
+      #   ToPort: 80
+      #   CidrIp: 0.0.0.0/0
+      # SecurityGroupEgress:
+      # - IpProtocol: tcp
+      #   FromPort: 22
+      #   ToPort: 22
+      #   CidrIp: 0.0.0.0/0
+
+# ------------------------------------------------------------#
+#  Outputs
+# ------------------------------------------------------------#
+
+Outputs:
+  OUTPUTEC2ID:
+    Description: ec2 instance id
+    Value: !Ref EC2INSTANCEID
+    Export: 
+      Name: !Sub ${AWS::StackName}-OutputEc2InstanceId
+
+  OUTPUTPUBLICIPID:
+    Description: this is ec2 public ip address
+    Value: !Ref EIPID
+    Export: 
+      Name: !Sub ${AWS::StackName}-OutputElasticIpId
+
+  # OUTPUTPRIVATEIPID:
+  #   Description: this is ec2 private ip address
+  #   Value: !GetAtt EC2INSTANCEID.PrivateIp
+  #   Export: 
+  #     Name: !Sub ${AWS::StackName}-OutputPrivateIpId
+
+  OUTPUTEC2SECURITYGROUPID:
+    Description: this is ec2 security group id
+    Value: !Ref EC2SECURITYGROUPID
+    Export: 
+      Name: !Sub ${AWS::StackName}-OutputEc2SecurityGroup
 
 
