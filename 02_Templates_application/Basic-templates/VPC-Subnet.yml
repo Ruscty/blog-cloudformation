@@ -9,27 +9,6 @@ Parameters:
     Description: input vpc cidrblock
     Type: String
     Default: 10.0.0.0/16
-
-  PublicSubnetCidrBlock:
-    Description: input subnet cidrblock
-    Type: String
-    Default: 10.0.0.0/24
-
-  PrivateSubnetCidrBlock:
-    Description: input subnet cidrblock
-    Type: String
-    Default: 10.0.10.0/24
-
-  PublicSubnetAvailabilityZone:
-    Description: input public subnet AvailabilityZone
-    Type: AWS::EC2::AvailabilityZone::Name
-    Default: ap-northeast-1a
-
-  PrivateSubnetAvailabilityZone:
-    Description: input private subnet AvailabilityZone
-    Type: AWS::EC2::AvailabilityZone::Name
-    Default: ap-northeast-1a
-  
 # ------------------------------------------------------------#
 # MetaData
 # ------------------------------------------------------------# 
@@ -41,10 +20,6 @@ Metadata:
           default: "VPC and Subnet Configuration"
         Parameters:
           - VpcCidrBlock
-          - PublicSubnetCidrBlock
-          - PrivateSubnetCidrBlock
-          - PublicSubnetAvailabilityZone
-          - PrivateSubnetAvailabilityZone
 
 Resources:
 # ------------------------------------------------------------#
@@ -87,37 +62,6 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
 
 # ------------------------------------------------------------#
-#  Subnet
-# ------------------------------------------------------------#
-# Public
-  PUBLICSUBNETID:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: !Ref PublicSubnetAvailabilityZone
-      CidrBlock: !Ref PublicSubnetCidrBlock
-      VpcId: !Ref VPCID
-
-  PUBLICSUBNETROUTETABLEASSOCIATIONID:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref ROUTETABLEID
-      SubnetId: !Ref PUBLICSUBNETID
-
-# Private
-  PRIVATESUBNETID:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: !Ref PrivateSubnetAvailabilityZone
-      CidrBlock: !Ref PrivateSubnetCidrBlock
-      VpcId: !Ref VPCID
-
-  PRIVATESUBNETROUTETABLEASSOCIATIONID:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref ROUTETABLEID
-      SubnetId: !Ref PRIVATESUBNETID
-
-# ------------------------------------------------------------#
 #  Outputs
 # ------------------------------------------------------------#
 Outputs:
@@ -127,14 +71,8 @@ Outputs:
     Export: 
       Name: !Sub ${AWS::StackName}-OutputVpcId
 
-  OUTPUTPUBLICSUBNETID:
-    Description: public subnet id
-    Value: !Ref PUBLICSUBNETID
+  OUTPUTROUTETABLEID:
+    Description: route table id
+    Value: !Ref ROUTETABLEID
     Export: 
-      Name: !Sub ${AWS::StackName}-OutputPublicSubnetId
-
-  OUTPUTPRIVATESUBNETID:
-    Description: private subnet id
-    Value: !Ref PRIVATESUBNETID
-    Export: 
-      Name: !Sub ${AWS::StackName}-OutputPrivateSubnetId
+      Name: !Sub ${AWS::StackName}-OutputRouteTableId

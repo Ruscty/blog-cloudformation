@@ -5,6 +5,22 @@ Description: |
 # Input Parameters
 # ------------------------------------------------------------# 
 Parameters:
+
+  PublicSubnetCidrBlock:
+    Description: input subnet cidrblock
+    Type: String
+    Default: 10.0.0.0/24
+
+  PublicSubnetAvailabilityZone:
+    Description: input public subnet AvailabilityZone
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+
+  IAMrolename:
+    Description: input your role name
+    Type: String
+    Default: ec2rdsrole
+
   keyName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: select keypair name
@@ -15,7 +31,6 @@ Parameters:
     Default: ami-0ca38c7440de1749a
     AllowedValues:
       - ami-0ca38c7440de1749a
-      - ami-0bc38169aa677df2e
 
   InstanceType:
     Type: String
@@ -30,10 +45,10 @@ Parameters:
     Type: String
     Default: XXXXX-OutputVpcId
 
-  OutputPublicSubnet:
-    Description: input output public subnet name. XXXXX is Stack Name
+  OutputRouteTableName:
+    Description: input output route table name. XXXXX is Stack Name
     Type: String
-    Default: XXXXX-OutputPublicSubnetId
+    Default: XXXXX--OutputRouteTableId
 
 # ------------------------------------------------------------#
 # MetaData
@@ -41,34 +56,89 @@ Parameters:
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
+      - Label:
+          default: "Subnet Configuration"
+        Parameters:
+          - PublicSubnetCidrBlock
+          - PublicSubnetAvailabilityZone
+
+      - Label:
+          default: "IAM Role Configuration"
+        Parameters:
+          - IAMrolename
       -
         Label:
           default: "VPC and Subnet Configuration"
         Parameters:
           - keyName
+          - AMI
           - InstanceType
       -
         Label:
           default: "Output Name Configuration"
         Parameters:
           - OutputVpc
-          - OutputPublicSubnet
+          - OutputRouteTableName
 
 Resources:
+# ------------------------------------------------------------#
+#  Subnet
+# ------------------------------------------------------------#
+# Public
+  PUBLICSUBNETID:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref PublicSubnetAvailabilityZone
+      CidrBlock: !Ref PublicSubnetCidrBlock
+      VpcId: {"Fn::ImportValue": !Sub "${OutputVpc}"}
+
+  PUBLICSUBNETROUTETABLEASSOCIATIONID:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: {"Fn::ImportValue": !Sub "${OutputRouteTableName}"}
+      SubnetId: !Ref PUBLICSUBNETID
+
+# ------------------------------------------------------------#
+#  IAMRole
+# ------------------------------------------------------------#
+  IAMROLEID:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: !Ref IAMrolename
+
+# ------------------------------------------------------------#
+#  IAMInstanceProfile
+# ------------------------------------------------------------#
+  RDSACCESSINSTANCEPROFILEID:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref IAMROLEID
+
 # ------------------------------------------------------------#
 #  EC2 Instance
 # ------------------------------------------------------------#
   EC2INSTANCEID:
     Type: AWS::EC2::Instance
     Properties:
-      # IamInstanceProfile: "String"
-      ImageId: !Ref AMI # Linux2
+      IamInstanceProfile: !Ref RDSACCESSINSTANCEPROFILEID
+      ImageId: !Ref AMI
       InstanceType: !Ref InstanceType
       KeyName: !Ref keyName
       NetworkInterfaces: 
         - AssociatePublicIpAddress: true
           DeviceIndex: "0"
-          SubnetId: {"Fn::ImportValue": !Sub "${OutputPublicSubnet}"}
+          SubnetId: !Ref PUBLICSUBNETID
           GroupSet:
             - !Ref EC2SECURITYGROUPID
       UserData:
@@ -131,6 +201,12 @@ Resources:
 # ------------------------------------------------------------#
 
 Outputs:
+  OUTPUTEC2IAMROLEID:
+    Description: ec2 iam role id
+    Value: !Ref IAMROLEID
+    Export: 
+      Name: !Sub ${AWS::StackName}-OutputEc2IamRoleId
+
   OUTPUTEC2ID:
     Description: ec2 instance id
     Value: !Ref EC2INSTANCEID
