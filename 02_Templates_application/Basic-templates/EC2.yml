@@ -145,7 +145,7 @@ Resources:
         Fn::Base64: |
           #!/bin/bash
           sudo yum update -y
-          sudo yum install git gcc-c++ make openssl-devel
+          sudo yum install git gcc-c++ make openssl-devel -y
           sudo amazon-linux-extras install nginx1.12 -y
           sudo yum list installed | grep mariadb
           sudo yum remove mariadb-libs -y

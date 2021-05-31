@@ -1,0 +1,38 @@
+★サービスファイル作成(node.service)
+[Unit]
+Description=node
+
+[Service]
+PIDFile=/tmp/myapp.pid
+Restart=always
+KillSignal=SIGQUIT
+WorkingDirectory=/home/ec2-user/myapp/
+ExecStart=/home/ec2-user/.nvm/versions/node/v14.17.0/bin/node /home/ec2-user/myapp/app.js
+
+[Install]
+WantedBy=multi-user.target
+
+
+★デーモンとして登録:
+$ sudo systemctl enable node.service
+
+★
+
+■参考
+[Unit]
+Description=SampleWeb1 Node.js running
+After=syslog.target network.target
+ 
+[Service]
+Type=simple
+WorkingDirectory=/var/www/nodejs/SampleWeb1
+ExecStart=/usr/bin/node /var/www/nodejs/SampleWeb1/index.js
+KillMode=process
+Restart=always
+RestartSec=10
+  
+[Install]
+WantedBy=multi-user.target
+
+
+

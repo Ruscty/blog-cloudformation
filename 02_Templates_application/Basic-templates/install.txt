@@ -1,7 +1,42 @@
+★nodeとexpressのインストール
 git clone git://github.com/creationix/nvm.git .nvm
 source ~/.nvm/nvm.sh
 nvm install --lts --latest-npm
 npm install -g express-generator
-express -e myapp
+★ git clone 対象リポジトリ
+express -e (myapp←必要なくなった)
 cd myapp
 npm install
+
+
+★node.jsアプリのデーモン化
+1. ○○.serviceファイルを作成(例nodejs.service)
+→ sudo vim /etc/systemd/system/nodejs.service
+2. 以下ファイル内容
+
+[Unit]
+Description=Nodejs app running
+After=syslog.target network.target
+ 
+[Service]
+Type=simple
+WorkingDirectory=/var
+ExecStart=/home/ec2-user/.nvm/versions/node/v14.17.0/bin/node /var/www
+KillMode=process
+Restart=always
+RestartSec=10
+  
+[Install]
+WantedBy=multi-user.target
+
+3. サービス登録
+sudo systemctl enable nodejs.service
+
+4. 起動
+sudo systemctl start nodejs.service
+
+5. 確認
+sudo systemctl status nodejs.service
+
+途中ec2の接続が切れるので、接続ができなくなったらコンソールで再起動
+または接続できなくなる前に　sudo reboot
