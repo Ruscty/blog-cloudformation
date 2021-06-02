@@ -8,6 +8,9 @@ express -e (myapp←必要なくなった)
 cd myapp
 npm install
 
+★nginxの設定
+sudo vim /etc/nginx/nginx.conf
+内容は同階層のnginx.confを参照
 
 ★node.jsアプリのデーモン化
 1. ○○.serviceファイルを作成(例nodejs.service)
@@ -21,7 +24,7 @@ After=syslog.target network.target
 [Service]
 Type=simple
 WorkingDirectory=/var
-ExecStart=/home/ec2-user/.nvm/versions/node/v14.17.0/bin/node /var/www
+ExecStart=/home/ec2-user/.nvm/versions/node/v14.17.0/bin/node /home/ec2-user/アプリ名/bin/www
 KillMode=process
 Restart=always
 RestartSec=10
